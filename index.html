@@ -1,36 +1,76 @@
-<HTML>
+<!DOCTYPE html>
+<html>
 <head>
-    <script>
-        window.onload = function() {
-            var img = new Image();
-            img.onload = function() {
-                invertColor(this);
-            };
-            img.src = "leapingkitten.jpg";
-        };
-
-        function invertColor(img) {
-            var canvas = document.getElementById("mycanvas");
-            var context = canvas.getContext("2d");
-            // draw image at top-left corner
-            context.drawImage(img, 0, 0);
-            // draw original image right beside the previous image
-            context.drawImage(img, img.width, 0);
-            // get ImageData object from the left image
-            var imageData = context.getImageData(0, 0, img.width, img.height);
-            var data = imageData.data;
-            
-            for (var i = 0; i < data.length; i += 4) {
-                data[i] = 255 - data[i]; // red
-                data[i + 1] = 255 - data[i + 1]; // green
-                data[i + 2] = 255 - data[i + 2]; // blue
-                data[i + 3] = 255; // alpha
-            }
-            context.putImageData(imageData, 0, 0);
-        }
-    </script>
+  <title>Video and Canvas Demo</title>
 </head>
 <body>
-    <canvas id="mycanvas" width="600" height="250"></canvas>
+  <video id="video" width = "800" height = "450" controls loop>
+    <source src="ghostoftsushima.mp4" type = "video/mp4">
+  </video>
+  
+  <canvas id="canvas" width="800" height="450"></canvas>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var video = document.getElementById('video');
+      var canvas = document.getElementById('canvas');
+      var context = canvas.getContext('2d');
+      var back = document.createElement('canvas');
+      var backContext = back.getContext('2d');
+
+      video.addEventListener('play', function() {
+        canvas.width = video.clientWidth;
+        canvas.height = video.clientHeight;
+        back.width = canvas.width;
+        back.height = canvas.height;
+        draw(video, context, backContext, canvas.width, canvas.height);
+      }, false);
+    }, false);
+
+    function draw(video, canvasContext, backContext, canvasWidth, canvasHeight) {
+      if (video.paused || video.ended) return false;
+
+      backContext.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+
+      var idata = backContext.getImageData(0, 0, canvasWidth, canvasHeight);
+      var filteredData = applyFilter(idata);
+
+      canvasContext.putImageData(filteredData, 0, 0);
+
+      requestAnimationFrame(function() {
+        draw(video, canvasContext, backContext, canvasWidth, canvasHeight);
+      });
+    }
+
+    function applyFilter(imageData) {
+      const width = imageData.width;
+      const height = imageData.height;
+      const data = imageData.data;
+      const filteredData = new Uint8ClampedArray(data.length);
+      const laplaceFilter = [
+        [-1, -1, -1],
+        [-1,  8, -1],
+        [-1, -1, -1]
+      ];
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          let sum = 0;
+          for (let fy = 0; fy < 3; fy++) {
+            for (let fx = 0; fx < 3; fx++) {
+              const fi = ((y + fy - 1) * width + (x + fx - 1)) * 4;
+              sum += laplaceFilter[fy][fx] * data[fi];
+            }
+          }
+          filteredData[i] = sum;
+          filteredData[i + 1] = sum;
+          filteredData[i + 2] = sum;
+          filteredData[i + 3] = 255;
+        }
+      }
+      return new ImageData(filteredData, width, height);
+    }
+  </script>
 </body>
-</HTML>
+</html>
